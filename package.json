@@ -1,0 +1,34 @@
+{
+  "name": "devpulse",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev:web & npm run dev:api",
+    "dev:web": "npm run dev --workspace @devpulse/web",
+    "dev:api": "npm run start:dev --workspace @devpulse/api",
+    "build": "npm run build:web && npm run build:api",
+    "build:web": "npm run build --workspace @devpulse/web",
+    "build:api": "npm run build --workspace @devpulse/api",
+    "lint": "npm run lint:web && npm run lint:api",
+    "lint:web": "npm run lint --workspace @devpulse/web",
+    "lint:api": "npm run lint --workspace @devpulse/api",
+    "test": "npm run test:web && npm run test:api",
+    "test:web": "npm run test --workspace @devpulse/web",
+    "test:api": "npm run test --workspace @devpulse/api",
+    "typecheck": "npm run typecheck:web && npm run typecheck:api",
+    "typecheck:web": "npm run typecheck --workspace @devpulse/web",
+    "typecheck:api": "npm run typecheck --workspace @devpulse/api",
+    "install:all": "npm install"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.0",
+    "eslint": "^9.37.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "eslint-config-prettier": "^10.1.1"
+  }
+}
