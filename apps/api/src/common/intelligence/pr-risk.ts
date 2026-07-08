@@ -1,7 +1,10 @@
 export type PullRequestRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export type PullRequestRiskInput = {
+  state: string;
   createdAtGithub: Date;
+  closedAtGithub?: Date;
+  mergedAtGithub?: Date;
   filesChanged: number;
   additions: number;
   deletions: number;
@@ -66,6 +69,23 @@ export function calculatePullRequestRisk(
   input: PullRequestRiskInput,
   now = new Date()
 ): PullRequestRiskResult {
+  const isClosed =
+    input.state.toLowerCase() !== 'open' ||
+    Boolean(input.closedAtGithub) ||
+    Boolean(input.mergedAtGithub);
+
+  if (isClosed) {
+    return {
+      score: 0,
+      level: 'LOW',
+      reasons: [
+        input.mergedAtGithub
+          ? 'PR is merged and no longer active delivery risk'
+          : 'PR is closed and no longer active delivery risk'
+      ]
+    };
+  }
+
   let score = 0;
   const reasons: string[] = [];
   const ageDays = getAgeDays(input.createdAtGithub, now);
@@ -147,4 +167,3 @@ export function calculatePullRequestRisk(
     reasons
   };
 }
-

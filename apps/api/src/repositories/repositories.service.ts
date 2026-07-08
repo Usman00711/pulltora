@@ -358,10 +358,12 @@ export class RepositoriesService {
     ] = await Promise.all([
       this.pullRequestSnapshotModel.countDocuments({
         repository: repository._id,
+        state: 'open',
         riskLevel: PullRequestRiskLevel.HIGH
       }),
       this.pullRequestSnapshotModel.countDocuments({
         repository: repository._id,
+        state: 'open',
         riskLevel: PullRequestRiskLevel.CRITICAL
       }),
       this.pullRequestSnapshotModel.countDocuments({
@@ -1175,7 +1177,10 @@ export class RepositoriesService {
     const prRiskResults = await Promise.all(
       pullRequests.map(async (pullRequest) => {
         const result = calculatePullRequestRisk({
+          state: pullRequest.state,
           createdAtGithub: pullRequest.createdAtGithub,
+          closedAtGithub: pullRequest.closedAtGithub,
+          mergedAtGithub: pullRequest.mergedAtGithub,
           filesChanged: pullRequest.filesChanged,
           additions: pullRequest.additions,
           deletions: pullRequest.deletions,
@@ -1356,10 +1361,12 @@ export class RepositoriesService {
     ] = await Promise.all([
       this.pullRequestSnapshotModel.countDocuments({
         repository: repository._id,
+        state: 'open',
         riskLevel: PullRequestRiskLevel.HIGH
       }),
       this.pullRequestSnapshotModel.countDocuments({
         repository: repository._id,
+        state: 'open',
         riskLevel: PullRequestRiskLevel.CRITICAL
       }),
       this.issueSnapshotModel.countDocuments({ repository: repository._id, isStale: true }),
