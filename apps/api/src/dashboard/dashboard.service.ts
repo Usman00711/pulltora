@@ -58,8 +58,24 @@ export class DashboardService {
             _id: '$repository',
             low: { $sum: { $cond: [{ $eq: ['$riskLevel', PullRequestRiskLevel.LOW] }, 1, 0] } },
             medium: { $sum: { $cond: [{ $eq: ['$riskLevel', PullRequestRiskLevel.MEDIUM] }, 1, 0] } },
-            high: { $sum: { $cond: [{ $eq: ['$riskLevel', PullRequestRiskLevel.HIGH] }, 1, 0] } },
-            critical: { $sum: { $cond: [{ $eq: ['$riskLevel', PullRequestRiskLevel.CRITICAL] }, 1, 0] } },
+            high: {
+              $sum: {
+                $cond: [
+                  { $and: [{ $eq: ['$state', 'open'] }, { $eq: ['$riskLevel', PullRequestRiskLevel.HIGH] }] },
+                  1,
+                  0
+                ]
+              }
+            },
+            critical: {
+              $sum: {
+                $cond: [
+                  { $and: [{ $eq: ['$state', 'open'] }, { $eq: ['$riskLevel', PullRequestRiskLevel.CRITICAL] }] },
+                  1,
+                  0
+                ]
+              }
+            },
             stale: {
               $sum: {
                 $cond: [
@@ -187,7 +203,7 @@ export class DashboardService {
           hotspotFiles: repoHotspotFiles,
           lastSyncedAt: repository.lastSyncedAt ? repository.lastSyncedAt.toISOString() : null
         };
-      })
+      });
 
     const averageHealth = repositoryRows.length
       ? Math.round(repositoryRows.reduce((sum, repository) => sum + repository.score, 0) / repositoryRows.length)
