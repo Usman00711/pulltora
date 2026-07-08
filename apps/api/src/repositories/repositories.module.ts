@@ -5,6 +5,7 @@ import { ActivityLog, ActivityLogSchema } from '../common/schemas/activity-log.s
 import { ContributorSnapshot, ContributorSnapshotSchema } from './schemas/contributor-snapshot.schema';
 import { HotspotFile, HotspotFileSchema } from './schemas/hotspot-file.schema';
 import { IssueSnapshot, IssueSnapshotSchema } from './schemas/issue-snapshot.schema';
+import { RepositoryInsight, RepositoryInsightSchema } from './schemas/repository-insight.schema';
 import {
   PullRequestSnapshot,
   PullRequestSnapshotSchema
@@ -22,6 +23,7 @@ import { RepositoriesService } from './repositories.service';
       { name: IssueSnapshot.name, schema: IssueSnapshotSchema },
       { name: ContributorSnapshot.name, schema: ContributorSnapshotSchema },
       { name: HotspotFile.name, schema: HotspotFileSchema },
+      { name: RepositoryInsight.name, schema: RepositoryInsightSchema },
       { name: ActivityLog.name, schema: ActivityLogSchema }
     ])
   ],
