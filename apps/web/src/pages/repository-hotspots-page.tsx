@@ -85,27 +85,29 @@ export default function RepositoryHotspotsPage() {
           description="Run Analyze Repository after syncing pull request data to calculate hotspot files."
         />
       ) : (
-        <article className="subtle-card overflow-x-auto">
-          <table className="w-full text-sm">
+        <article className="subtle-card data-table-card">
+          <table className="data-table min-w-[920px]">
             <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-4">File</th>
-                <th className="py-2 pr-4">Module</th>
-                <th className="py-2 pr-4">Changes</th>
-                <th className="py-2 pr-4">Risk score</th>
-                <th className="py-2 pr-4">Related PRs</th>
+              <tr>
+                <th className="cell-title">File</th>
+                <th className="w-40">Module</th>
+                <th className="cell-right w-28">Changes</th>
+                <th className="cell-status w-32">Risk score</th>
+                <th className="w-44">Related PRs</th>
               </tr>
             </thead>
             <tbody>
               {hotspots.map((hotspot) => (
-                <tr key={hotspot.id} className="border-t border-slate-800/60">
-                  <td className="max-w-md break-all py-2 pr-4 font-semibold">{hotspot.filePath}</td>
-                  <td className="py-2 pr-4">{hotspot.module}</td>
-                  <td className="py-2 pr-4">{hotspot.changeCount}</td>
-                  <td className="py-2 pr-4">
+                <tr key={hotspot.id} className="data-table-row">
+                  <td className="cell-title font-semibold" title={hotspot.filePath}>
+                    <span className="cell-truncate">{hotspot.filePath}</span>
+                  </td>
+                  <td className="cell-truncate" title={hotspot.module}>{hotspot.module}</td>
+                  <td className="cell-right cell-mono">{hotspot.changeCount}</td>
+                  <td className="cell-status">
                     <StatusBadge label={String(hotspot.riskScore)} tone={getScoreTone(hotspot.riskScore)} />
                   </td>
-                  <td className="py-2 pr-4">{hotspot.relatedPrNumbers.join(', ') || '—'}</td>
+                  <td className="cell-mono">{hotspot.relatedPrNumbers.join(', ') || '—'}</td>
                 </tr>
               ))}
             </tbody>

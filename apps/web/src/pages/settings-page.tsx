@@ -23,7 +23,11 @@ export default function SettingsPage() {
           <h1 className="mt-2 text-3xl font-bold">Settings</h1>
           <p className="text-sm text-muted-foreground">Checking integration status...</p>
         </div>
-        <SkeletonPanel rows={5} />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <SkeletonPanel rows={4} />
+          <SkeletonPanel rows={4} />
+          <SkeletonPanel rows={4} />
+        </div>
       </section>
     );
   }
@@ -60,7 +64,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <article className="panel p-5">
+        <article className="panel glow-border p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="kpi-badge">GitHub</p>
@@ -82,7 +86,7 @@ export default function SettingsPage() {
           </div>
         </article>
 
-        <article className="panel p-5">
+        <article className="panel glow-border p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="kpi-badge">AI</p>

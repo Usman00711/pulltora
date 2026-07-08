@@ -75,31 +75,31 @@ export default function RepositoryReviewsPage() {
           description="No open unreviewed pull requests were found in the latest analyzed snapshot."
         />
       ) : (
-        <article className="subtle-card overflow-x-auto">
-          <table className="w-full text-sm">
+        <article className="subtle-card data-table-card">
+          <table className="data-table min-w-[860px]">
             <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-4">#</th>
-                <th className="py-2 pr-4">Title</th>
-                <th className="py-2 pr-4">Author</th>
-                <th className="py-2 pr-4">Age</th>
-                <th className="py-2 pr-4">Files</th>
-                <th className="py-2 pr-4">Risk</th>
+              <tr>
+                <th className="cell-number">#</th>
+                <th className="cell-title">Title</th>
+                <th className="w-36">Author</th>
+                <th className="cell-right w-24">Age</th>
+                <th className="cell-right w-24">Files</th>
+                <th className="cell-status w-32">Risk</th>
               </tr>
             </thead>
             <tbody>
               {items.map((pullRequest) => (
-                <tr key={pullRequest.id} className="border-t border-slate-800/60">
-                  <td className="py-2 pr-4">{pullRequest.number}</td>
-                  <td className="py-2 pr-4">
-                    <a href={pullRequest.url} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">
+                <tr key={pullRequest.id} className="data-table-row">
+                  <td className="cell-number">#{pullRequest.number}</td>
+                  <td className="cell-title">
+                    <a href={pullRequest.url} target="_blank" rel="noreferrer" title={pullRequest.title} className="cell-truncate font-semibold text-cyan-200 hover:text-cyan-100">
                       {pullRequest.title}
                     </a>
                   </td>
-                  <td className="py-2 pr-4">{pullRequest.author}</td>
-                  <td className="py-2 pr-4">{pullRequest.ageDays}d</td>
-                  <td className="py-2 pr-4">{pullRequest.filesChanged}</td>
-                  <td className="py-2 pr-4">{pullRequest.riskLevel} · {pullRequest.riskScore}</td>
+                  <td className="cell-truncate" title={pullRequest.author}>{pullRequest.author}</td>
+                  <td className="cell-right cell-mono">{pullRequest.ageDays}d</td>
+                  <td className="cell-right cell-mono">{pullRequest.filesChanged}</td>
+                  <td className="cell-status">{pullRequest.riskLevel} · {pullRequest.riskScore}</td>
                 </tr>
               ))}
             </tbody>
