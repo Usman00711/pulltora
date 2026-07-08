@@ -15,6 +15,7 @@ import { CommonModule } from './common/common.module';
 import { ConfigModule as AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     AppConfigModule,
     DatabaseModule,
     DashboardModule,
+    SettingsModule,
     AuthModule,
     UsersModule,
     RepositoriesModule,

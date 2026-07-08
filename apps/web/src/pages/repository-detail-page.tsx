@@ -66,6 +66,12 @@ export default function RepositoryDetailPage() {
     enabled: Boolean(id)
   });
 
+  const insightQuery = useQuery({
+    queryKey: ['repositoryInsights', id],
+    queryFn: () => repositoryService.listRepositoryInsights(id),
+    enabled: Boolean(id)
+  });
+
   const healthQuery = useQuery({
     queryKey: ['repositoryHealth', id],
     queryFn: () => repositoryService.getRepositoryHealth(id),
@@ -143,7 +149,8 @@ export default function RepositoryDetailPage() {
         queryClient.invalidateQueries({ queryKey: ['repositoryHotspots', id] }),
         queryClient.invalidateQueries({ queryKey: ['repositoryReviewBottlenecks', id] }),
         queryClient.invalidateQueries({ queryKey: ['repositoryRisks', id] }),
-        queryClient.invalidateQueries({ queryKey: ['repositoryWorkloadSummary', id] })
+        queryClient.invalidateQueries({ queryKey: ['repositoryWorkloadSummary', id] }),
+        queryClient.invalidateQueries({ queryKey: ['repositoryInsights', id] })
       ]);
     },
     onError: (analysisErr) => {
@@ -151,6 +158,19 @@ export default function RepositoryDetailPage() {
         analysisErr instanceof Error ? analysisErr.message : 'Failed to analyze repository';
       setAnalysisError(message);
       setAnalysisMessage('');
+      showToast(message, 'error');
+    }
+  });
+
+  const insightMutation = useMutation({
+    mutationFn: () => repositoryService.generateRepositoryInsights(id),
+    onSuccess: async () => {
+      showToast('Improvement ideas refreshed', 'success');
+      await queryClient.invalidateQueries({ queryKey: ['repositoryInsights', id] });
+    },
+    onError: (insightErr) => {
+      const message =
+        insightErr instanceof Error ? insightErr.message : 'Failed to refresh improvement ideas';
       showToast(message, 'error');
     }
   });
@@ -174,6 +194,10 @@ export default function RepositoryDetailPage() {
     setAnalysisMessage('');
     setAnalysisError('');
     analyzeMutation.mutate();
+  };
+
+  const handleRefreshInsights = () => {
+    insightMutation.mutate();
   };
 
   if (isLoading) {
@@ -325,6 +349,97 @@ export default function RepositoryDetailPage() {
         <MetricCard label="Critical issues" value={riskQuery.data?.criticalIssues ?? 0} tone="rose" />
         <MetricCard label="Hotspots" value={riskQuery.data?.hotspotFiles ?? 0} tone="cyan" />
       </section>
+
+      <article className="panel p-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="kpi-badge">AI Improvement Ideas</p>
+            <h2 className="mt-2 text-lg font-semibold">Betterment recommendations</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Generated from Pulltora analysis data. Local AI can enrich these later, but rule-based ideas work for free by default.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-soft"
+            onClick={handleRefreshInsights}
+            disabled={!data.lastSyncedAt || insightMutation.isPending}
+            title={!data.lastSyncedAt ? 'Sync and analyze before generating ideas' : undefined}
+          >
+            {insightMutation.isPending ? 'Refreshing...' : 'Refresh Ideas'}
+          </button>
+        </div>
+
+        {insightQuery.isLoading ? (
+          <SkeletonPanel rows={3} />
+        ) : insightQuery.isError ? (
+          <p className="text-sm text-red-300">
+            {insightQuery.error instanceof Error
+              ? insightQuery.error.message
+              : 'Failed to load improvement ideas.'}
+          </p>
+        ) : insightQuery.data?.items.length ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {insightQuery.data.items.slice(0, 6).map((insight) => {
+              const impactTone =
+                insight.impact === 'CRITICAL'
+                  ? 'text-red-300 border-red-400/40 bg-red-400/10'
+                  : insight.impact === 'HIGH'
+                    ? 'text-amber-200 border-amber-300/40 bg-amber-300/10'
+                    : insight.impact === 'MEDIUM'
+                      ? 'text-violet-200 border-violet-300/40 bg-violet-300/10'
+                      : 'text-emerald-200 border-emerald-300/40 bg-emerald-300/10';
+
+              return (
+                <div
+                  key={insight.id}
+                  className="rounded-2xl border border-border/80 bg-background/45 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.25)] transition hover:-translate-y-0.5 hover:border-brand/50 hover:bg-brand/10"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${impactTone}`}>
+                      {insight.impact}
+                    </span>
+                    <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-cyan-200">
+                      {insight.category.replace('_', ' ')}
+                    </span>
+                    <span className="rounded-full border border-border/80 bg-muted/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                      {insight.source === 'LOCAL_AI' ? 'Local AI' : 'Rules'} · {insight.confidence}%
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-base font-semibold">{insight.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">{insight.description}</p>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground">Why:</span> {insight.rationale}
+                  </p>
+                  {insight.relatedFiles.length || insight.relatedPrNumbers.length || insight.relatedIssueNumbers.length ? (
+                    <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                      {insight.relatedFiles.length ? (
+                        <p>
+                          Files: <span className="text-foreground">{insight.relatedFiles.slice(0, 4).join(', ')}</span>
+                        </p>
+                      ) : null}
+                      {insight.relatedPrNumbers.length ? (
+                        <p>
+                          PRs: <span className="text-foreground">{insight.relatedPrNumbers.map((number) => `#${number}`).join(', ')}</span>
+                        </p>
+                      ) : null}
+                      {insight.relatedIssueNumbers.length ? (
+                        <p>
+                          Issues: <span className="text-foreground">{insight.relatedIssueNumbers.map((number) => `#${number}`).join(', ')}</span>
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-border/80 bg-background/45 p-5 text-sm text-muted-foreground">
+            Run Analyze Repository after syncing GitHub data to generate improvement ideas.
+          </div>
+        )}
+      </article>
 
       <section className="grid gap-4 lg:grid-cols-3">
         <article className="panel p-4">

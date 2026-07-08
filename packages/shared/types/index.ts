@@ -285,6 +285,55 @@ export type DashboardIntelligence = {
   topRisks: string[];
 };
 
+export type RepositoryInsightCategory =
+  | 'ARCHITECTURE'
+  | 'TESTING'
+  | 'SECURITY'
+  | 'REVIEW_PROCESS'
+  | 'WORKLOAD'
+  | 'RELEASE_RISK'
+  | 'MAINTAINABILITY'
+  | 'DX';
+
+export type RepositoryInsightImpact = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export type RepositoryInsightSource = 'RULES' | 'LOCAL_AI';
+
+export type RepositoryInsight = {
+  id: string;
+  repository: string;
+  category: RepositoryInsightCategory;
+  title: string;
+  description: string;
+  rationale: string;
+  impact: RepositoryInsightImpact;
+  confidence: number;
+  source: RepositoryInsightSource;
+  relatedFiles: string[];
+  relatedPrNumbers: number[];
+  relatedIssueNumbers: number[];
+  generatedAt: string;
+};
+
+export type RepositoryInsightListResponse = PaginatedResult<RepositoryInsight>;
+
+export type IntegrationSettingsStatus = {
+  github: {
+    tokenConfigured: boolean;
+    mode: 'public-api' | 'token-authenticated';
+  };
+  ai: {
+    enabled: boolean;
+    provider: 'none' | 'ollama';
+    model?: string;
+    baseUrlConfigured: boolean;
+  };
+  notifications: {
+    enabled: false;
+    channels: string[];
+  };
+};
+
 export type CreateRepositoryPayload = {
   owner: string;
   name: string;

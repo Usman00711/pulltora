@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { GithubService } from '../github/github.service';
@@ -11,6 +12,12 @@ import { calculateRepositoryHealth } from '../common/intelligence/health-score';
 import { analyzeHotspots } from '../common/intelligence/hotspot-analysis';
 import { analyzeIssue } from '../common/intelligence/issue-intelligence';
 import { calculatePullRequestRisk } from '../common/intelligence/pr-risk';
+import {
+  buildRepositoryInsightContextSummary,
+  generateRuleBasedRepositoryInsights,
+  RepositoryInsightDraft,
+  RepositoryInsightContext
+} from '../common/intelligence/repository-insights';
 import { calculateWorkloadScore } from '../common/intelligence/workload-score';
 import {
   ContributorSnapshot,
@@ -18,6 +25,12 @@ import {
 } from './schemas/contributor-snapshot.schema';
 import { HotspotFile } from './schemas/hotspot-file.schema';
 import { IssueSnapshot } from './schemas/issue-snapshot.schema';
+import {
+  RepositoryInsight,
+  RepositoryInsightCategory,
+  RepositoryInsightImpact,
+  RepositoryInsightSource
+} from './schemas/repository-insight.schema';
 import {
   PullRequestRiskLevel,
   PullRequestSnapshot
@@ -29,6 +42,7 @@ import {
   HotspotFileListDto,
   RepositoryAnalysisSummaryDto,
   RepositoryHealthDto,
+  RepositoryInsightListDto,
   RepositoryRiskSummaryDto,
   ReviewBottlenecksDto,
   IssueSnapshotListDto,
@@ -127,6 +141,22 @@ type HotspotFileRow = {
   analyzedAt: string;
 };
 
+type RepositoryInsightRow = {
+  id: string;
+  repository: string;
+  category: RepositoryInsightCategory;
+  title: string;
+  description: string;
+  rationale: string;
+  impact: RepositoryInsightImpact;
+  confidence: number;
+  source: RepositoryInsightSource;
+  relatedFiles: string[];
+  relatedPrNumbers: number[];
+  relatedIssueNumbers: number[];
+  generatedAt: string;
+};
+
 export interface RepositoryListResult {
   items: RepositoryRow[];
   page: number;
@@ -147,9 +177,12 @@ export class RepositoriesService {
     private readonly contributorSnapshotModel: Model<ContributorSnapshot>,
     @InjectModel(HotspotFile.name)
     private readonly hotspotFileModel: Model<HotspotFile>,
+    @InjectModel(RepositoryInsight.name)
+    private readonly repositoryInsightModel: Model<RepositoryInsight>,
     @InjectModel(ActivityLog.name)
     private readonly activityLogModel: Model<ActivityLog>,
-    private readonly githubService: GithubService
+    private readonly githubService: GithubService,
+    private readonly configService: ConfigService
   ) {}
 
   private toPlain(repository: RepositoryDocument): RepositoryRow {
@@ -250,6 +283,24 @@ export class RepositoriesService {
       relatedPrNumbers: snapshot.relatedPrNumbers,
       lastTouchedAt: snapshot.lastTouchedAt.toISOString(),
       analyzedAt: snapshot.analyzedAt.toISOString()
+    };
+  }
+
+  private toRepositoryInsightRow(snapshot: RepositoryInsight): RepositoryInsightRow {
+    return {
+      id: snapshot.id.toString(),
+      repository: snapshot.repository.toString(),
+      category: snapshot.category,
+      title: snapshot.title,
+      description: snapshot.description,
+      rationale: snapshot.rationale,
+      impact: snapshot.impact,
+      confidence: snapshot.confidence,
+      source: snapshot.source,
+      relatedFiles: snapshot.relatedFiles,
+      relatedPrNumbers: snapshot.relatedPrNumbers,
+      relatedIssueNumbers: snapshot.relatedIssueNumbers,
+      generatedAt: snapshot.generatedAt.toISOString()
     };
   }
 
@@ -379,6 +430,225 @@ export class RepositoriesService {
     }
 
     return repository;
+  }
+
+  private async buildInsightContext(
+    repository: RepositoryDocument,
+    health?: RepositoryHealthDto
+  ): Promise<RepositoryInsightContext> {
+    const [pullRequests, issues, contributors, hotspots] = await Promise.all([
+      this.pullRequestSnapshotModel.find({ repository: repository._id }).exec(),
+      this.issueSnapshotModel.find({ repository: repository._id }).exec(),
+      this.contributorSnapshotModel.find({ repository: repository._id }).exec(),
+      this.hotspotFileModel.find({ repository: repository._id }).sort({ riskScore: -1 }).exec()
+    ]);
+
+    return {
+      repositoryFullName: repository.fullName,
+      healthScore: health?.score,
+      healthLevel: health?.level,
+      pullRequests: pullRequests.map((pullRequest) => ({
+        number: pullRequest.number,
+        title: pullRequest.title,
+        author: pullRequest.author,
+        state: pullRequest.state,
+        filesChanged: pullRequest.filesChanged,
+        additions: pullRequest.additions,
+        deletions: pullRequest.deletions,
+        changedFileNames: pullRequest.changedFileNames,
+        reviewCount: pullRequest.reviewCount,
+        riskScore: pullRequest.riskScore,
+        riskLevel: pullRequest.riskLevel,
+        riskReasons: pullRequest.riskReasons
+      })),
+      issues: issues.map((issue) => ({
+        number: issue.number,
+        title: issue.title,
+        state: issue.state,
+        labels: issue.labels,
+        isStale: issue.isStale,
+        isCritical: issue.isCritical
+      })),
+      contributors: contributors.map((contributor) => ({
+        username: contributor.username,
+        openPrs: contributor.openPrs,
+        assignedIssues: contributor.assignedIssues,
+        pendingReviews: contributor.pendingReviews,
+        staleItems: contributor.staleItems,
+        workloadScore: contributor.workloadScore,
+        workloadLevel: contributor.workloadLevel
+      })),
+      hotspots: hotspots.map((hotspot) => ({
+        filePath: hotspot.filePath,
+        module: hotspot.module,
+        changeCount: hotspot.changeCount,
+        riskScore: hotspot.riskScore,
+        relatedPrNumbers: hotspot.relatedPrNumbers
+      }))
+    };
+  }
+
+  private normalizeAiInsightDrafts(value: unknown): RepositoryInsightDraft[] {
+    const rawItems =
+      Array.isArray(value)
+        ? value
+        : value && typeof value === 'object' && Array.isArray((value as { insights?: unknown }).insights)
+          ? ((value as { insights: unknown[] }).insights)
+          : [];
+
+    if (!rawItems.length) {
+      return [];
+    }
+
+    return rawItems
+      .slice(0, 5)
+      .map((item) => {
+        const payload = item as Record<string, unknown>;
+        const category = String(payload.category || RepositoryInsightCategory.DX).toUpperCase();
+        const impact = String(payload.impact || RepositoryInsightImpact.MEDIUM).toUpperCase();
+
+        return {
+          category: Object.values(RepositoryInsightCategory).includes(category as RepositoryInsightCategory)
+            ? (category as RepositoryInsightCategory)
+            : RepositoryInsightCategory.DX,
+          title: this.safeTrim(payload.title, 'AI improvement idea').slice(0, 160),
+          description: this.safeTrim(payload.description, 'Review this area for improvement.').slice(0, 1200),
+          rationale: this.safeTrim(payload.rationale, 'Generated from Pulltora repository intelligence summary.').slice(0, 1200),
+          impact: Object.values(RepositoryInsightImpact).includes(impact as RepositoryInsightImpact)
+            ? (impact as RepositoryInsightImpact)
+            : RepositoryInsightImpact.MEDIUM,
+          confidence: Math.max(0, Math.min(Number(payload.confidence) || 65, 100)),
+          source: RepositoryInsightSource.LOCAL_AI,
+          relatedFiles: Array.isArray(payload.relatedFiles)
+            ? payload.relatedFiles.map((file) => this.safeTrim(file)).filter(Boolean).slice(0, 12)
+            : [],
+          relatedPrNumbers: Array.isArray(payload.relatedPrNumbers)
+            ? payload.relatedPrNumbers.map(Number).filter(Number.isFinite).slice(0, 12)
+            : [],
+          relatedIssueNumbers: Array.isArray(payload.relatedIssueNumbers)
+            ? payload.relatedIssueNumbers.map(Number).filter(Number.isFinite).slice(0, 12)
+            : []
+        };
+      })
+      .filter((insight) => insight.title && insight.description);
+  }
+
+  private parseAiJson(content: string): unknown {
+    try {
+      return JSON.parse(content);
+    } catch {
+      const firstBrace = content.indexOf('{');
+      const lastBrace = content.lastIndexOf('}');
+
+      if (firstBrace >= 0 && lastBrace > firstBrace) {
+        return JSON.parse(content.slice(firstBrace, lastBrace + 1));
+      }
+
+      const firstBracket = content.indexOf('[');
+      const lastBracket = content.lastIndexOf(']');
+
+      if (firstBracket >= 0 && lastBracket > firstBracket) {
+        return JSON.parse(content.slice(firstBracket, lastBracket + 1));
+      }
+
+      return null;
+    }
+  }
+
+  private async generateLocalAiInsights(
+    context: RepositoryInsightContext
+  ): Promise<RepositoryInsightDraft[]> {
+    const enabled = this.configService.get<string>('AI_ENABLED')?.toLowerCase() === 'true';
+    const provider = this.configService.get<string>('AI_PROVIDER')?.toLowerCase() || 'none';
+
+    if (!enabled || provider !== 'ollama') {
+      return [];
+    }
+
+    const baseUrl = this.configService.get<string>('AI_BASE_URL') || 'http://localhost:11434';
+    const model = this.configService.get<string>('AI_MODEL') || 'llama3.1';
+    const prompt = [
+      'You are Pulltora, an engineering delivery intelligence assistant.',
+      'Generate up to 5 practical repository improvement ideas from this sanitized summary only.',
+      'Do not invent source-code details. Do not mention secrets. Return JSON only with an "insights" array.',
+      'Allowed categories: ARCHITECTURE, TESTING, SECURITY, REVIEW_PROCESS, WORKLOAD, RELEASE_RISK, MAINTAINABILITY, DX.',
+      'Allowed impacts: LOW, MEDIUM, HIGH, CRITICAL.',
+      'Each item needs title, description, rationale, category, impact, confidence, relatedFiles, relatedPrNumbers, relatedIssueNumbers.',
+      '',
+      buildRepositoryInsightContextSummary(context)
+    ].join('\n');
+
+    try {
+      const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          stream: false,
+          messages: [{ role: 'user', content: prompt }],
+          format: 'json'
+        })
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const payload = (await response.json().catch(() => null)) as
+        | { message?: { content?: string } }
+        | null;
+      const content = payload?.message?.content;
+
+      if (!content) {
+        return [];
+      }
+
+      const parsed = this.parseAiJson(content);
+      return this.normalizeAiInsightDrafts(parsed);
+    } catch {
+      return [];
+    }
+  }
+
+  private async generateAndStoreInsights(
+    repository: RepositoryDocument,
+    userId: string
+  ): Promise<number> {
+    const health = await this.getRepositoryHealthPayload(repository);
+    const context = await this.buildInsightContext(repository, health);
+    const generatedAt = new Date();
+    const ruleInsights = generateRuleBasedRepositoryInsights(context);
+    const aiInsights = await this.generateLocalAiInsights(context);
+    const insights = [...ruleInsights, ...aiInsights];
+
+    await this.repositoryInsightModel.deleteMany({ repository: repository._id });
+
+    if (insights.length > 0) {
+      await this.repositoryInsightModel.insertMany(
+        insights.map((insight) => ({
+          ...insight,
+          repository: repository._id,
+          generatedAt
+        }))
+      );
+    }
+
+    await this.activityLogModel.create({
+      user: this.toObjectId(userId),
+      repository: repository._id,
+      action: 'REPOSITORY_INSIGHTS_GENERATED',
+      entity: 'repository',
+      entityId: repository.id.toString(),
+      metadata: {
+        repositoryId: repository.id.toString(),
+        generatedAt: generatedAt.toISOString(),
+        ruleInsights: ruleInsights.length,
+        aiInsights: aiInsights.length,
+        totalInsights: insights.length
+      }
+    });
+
+    return insights.length;
   }
 
   async create(dto: CreateRepositoryDto, userId: string) {
@@ -739,6 +1009,8 @@ export class RepositoriesService {
       }
     });
 
+    await this.generateAndStoreInsights(repository, userId);
+
     return {
       repositoryId: repository.id.toString(),
       syncedAt: syncedAt.toISOString(),
@@ -746,6 +1018,50 @@ export class RepositoriesService {
       issuesSynced,
       contributorsSynced,
       message: 'Repository synced successfully'
+    };
+  }
+
+  async generateRepositoryInsights(
+    repositoryId: string,
+    userId: string
+  ): Promise<RepositoryInsightListDto> {
+    const repository = await this.ensureOwned(repositoryId, userId);
+
+    if (!repository.lastSyncedAt) {
+      throw new BadRequestException('Repository must be synced before generating insights.');
+    }
+
+    await this.generateAndStoreInsights(repository, userId);
+    return this.listRepositoryInsights(repositoryId, userId);
+  }
+
+  async listRepositoryInsights(
+    repositoryId: string,
+    userId: string,
+    page = 1,
+    pageSize = 50
+  ): Promise<RepositoryInsightListDto> {
+    const repository = await this.ensureOwned(repositoryId, userId);
+    const safePage = this.normalizePage(page);
+    const safePageSize = this.normalizePageSize(pageSize);
+    const skip = (safePage - 1) * safePageSize;
+    const filter = { repository: repository._id };
+
+    const [items, total] = await Promise.all([
+      this.repositoryInsightModel
+        .find(filter)
+        .sort({ impact: 1, confidence: -1, generatedAt: -1 })
+        .skip(skip)
+        .limit(safePageSize)
+        .exec(),
+      this.repositoryInsightModel.countDocuments(filter).exec()
+    ]);
+
+    return {
+      items: items.map((insight) => this.toRepositoryInsightRow(insight)),
+      page: safePage,
+      pageSize: safePageSize,
+      total
     };
   }
 

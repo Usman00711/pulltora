@@ -9,6 +9,7 @@ import {
   ContributorSnapshot,
   Repository,
   RepositoryHealth,
+  RepositoryInsightListResponse,
   RepositoryListResponse,
   ReviewBottlenecks,
   RiskSummary,
@@ -110,6 +111,19 @@ export const repositoryService = {
     return request(`/repositories/${id}/analyze`, {
       method: 'POST'
     });
+  },
+
+  async generateRepositoryInsights(id: string): Promise<RepositoryInsightListResponse> {
+    return request(`/repositories/${id}/insights/generate`, {
+      method: 'POST'
+    });
+  },
+
+  async listRepositoryInsights(
+    id: string,
+    params: RepositoryListParams = {}
+  ): Promise<RepositoryInsightListResponse> {
+    return request(`/repositories/${id}/insights${buildQuery(params)}`);
   },
 
   async getRisks(id: string): Promise<RiskSummary> {

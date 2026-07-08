@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { DashboardIntelligence } from '@devpulse/shared';
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ChartCard } from '@/components/intelligence/chart-card';
 import { EmptyState } from '@/components/intelligence/empty-state';
@@ -10,6 +12,16 @@ import { getHealthTone, StatusBadge } from '@/components/intelligence/status-bad
 import { repositoryService } from '@/services/repository-service';
 
 const chartColors = ['#22d3ee', '#8b5cf6', '#34d399', '#f59e0b', '#fb7185', '#a78bfa'];
+const DASHBOARD_CACHE_KEY = 'pulltora_dashboard_intelligence_cache';
+
+function readDashboardCache(): DashboardIntelligence | undefined {
+  try {
+    const cached = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+    return cached ? (JSON.parse(cached) as DashboardIntelligence) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export default function DashboardPage() {
   const {
@@ -20,8 +32,25 @@ export default function DashboardPage() {
     refetch
   } = useQuery({
     queryKey: ['dashboardIntelligence'],
-    queryFn: () => repositoryService.getDashboardIntelligence()
+    queryFn: () => repositoryService.getDashboardIntelligence(),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
+    initialData: readDashboardCache
   });
+
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(data));
+    } catch {
+      // Ignore storage failures; dashboard still works with network data.
+    }
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -187,4 +216,3 @@ export default function DashboardPage() {
     </section>
   );
 }
-

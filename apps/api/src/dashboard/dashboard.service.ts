@@ -35,43 +35,96 @@ export class DashboardService {
       .exec();
     const repositoryIds = repositories.map((repository) => repository._id);
 
+    const stalePrCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const [
-      lowPrs,
-      mediumPrs,
-      highRiskPrs,
-      criticalPrs,
-      openIssues,
-      staleIssues,
-      criticalIssues,
-      balancedContributors,
-      busyContributors,
-      overloadedContributors,
-      atRiskContributors,
-      hotspotFiles,
-      riskyHotspots,
-      reviewBottlenecks,
-      stalePrs,
+      prSummaryRows,
+      issueSummaryRows,
+      contributorSummaryRows,
+      hotspotSummaryRows,
       hotspotModuleRows
     ] = await Promise.all([
-      this.pullRequestSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, riskLevel: PullRequestRiskLevel.LOW }),
-      this.pullRequestSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, riskLevel: PullRequestRiskLevel.MEDIUM }),
-      this.pullRequestSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, riskLevel: PullRequestRiskLevel.HIGH }),
-      this.pullRequestSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, riskLevel: PullRequestRiskLevel.CRITICAL }),
-      this.issueSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, state: 'open' }),
-      this.issueSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, isStale: true }),
-      this.issueSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, isCritical: true }),
-      this.contributorSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, workloadLevel: ContributorWorkloadLevel.BALANCED }),
-      this.contributorSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, workloadLevel: ContributorWorkloadLevel.BUSY }),
-      this.contributorSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, workloadLevel: ContributorWorkloadLevel.OVERLOADED }),
-      this.contributorSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, workloadLevel: ContributorWorkloadLevel.AT_RISK }),
-      this.hotspotFileModel.countDocuments({ repository: { $in: repositoryIds } }),
-      this.hotspotFileModel.countDocuments({ repository: { $in: repositoryIds }, riskScore: { $gte: 50 } }),
-      this.pullRequestSnapshotModel.countDocuments({ repository: { $in: repositoryIds }, state: 'open', reviewCount: 0 }),
-      this.pullRequestSnapshotModel.countDocuments({
-        repository: { $in: repositoryIds },
-        state: 'open',
-        createdAtGithub: { $lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-      }),
+      this.pullRequestSnapshotModel.aggregate<{
+        _id: Types.ObjectId;
+        low: number;
+        medium: number;
+        high: number;
+        critical: number;
+        stale: number;
+        reviewBottlenecks: number;
+      }>([
+        { $match: { repository: { $in: repositoryIds } } },
+        {
+          $group: {
+            _id: '$repository',
+            low: { $sum: { $cond: [{ $eq: ['$riskLevel', PullRequestRiskLevel.LOW] }, 1, 0] } },
+            medium: { $sum: { $cond: [{ $eq: ['$riskLevel', PullRequestRiskLevel.MEDIUM] }, 1, 0] } },
+            high: { $sum: { $cond: [{ $eq: ['$riskLevel', PullRequestRiskLevel.HIGH] }, 1, 0] } },
+            critical: { $sum: { $cond: [{ $eq: ['$riskLevel', PullRequestRiskLevel.CRITICAL] }, 1, 0] } },
+            stale: {
+              $sum: {
+                $cond: [
+                  { $and: [{ $eq: ['$state', 'open'] }, { $lt: ['$createdAtGithub', stalePrCutoff] }] },
+                  1,
+                  0
+                ]
+              }
+            },
+            reviewBottlenecks: {
+              $sum: {
+                $cond: [{ $and: [{ $eq: ['$state', 'open'] }, { $eq: ['$reviewCount', 0] }] }, 1, 0]
+              }
+            }
+          }
+        }
+      ]),
+      this.issueSnapshotModel.aggregate<{
+        _id: Types.ObjectId;
+        open: number;
+        stale: number;
+        critical: number;
+      }>([
+        { $match: { repository: { $in: repositoryIds } } },
+        {
+          $group: {
+            _id: '$repository',
+            open: { $sum: { $cond: [{ $eq: ['$state', 'open'] }, 1, 0] } },
+            stale: { $sum: { $cond: ['$isStale', 1, 0] } },
+            critical: { $sum: { $cond: ['$isCritical', 1, 0] } }
+          }
+        }
+      ]),
+      this.contributorSnapshotModel.aggregate<{
+        _id: Types.ObjectId;
+        balanced: number;
+        busy: number;
+        overloaded: number;
+        atRisk: number;
+      }>([
+        { $match: { repository: { $in: repositoryIds } } },
+        {
+          $group: {
+            _id: '$repository',
+            balanced: { $sum: { $cond: [{ $eq: ['$workloadLevel', ContributorWorkloadLevel.BALANCED] }, 1, 0] } },
+            busy: { $sum: { $cond: [{ $eq: ['$workloadLevel', ContributorWorkloadLevel.BUSY] }, 1, 0] } },
+            overloaded: { $sum: { $cond: [{ $eq: ['$workloadLevel', ContributorWorkloadLevel.OVERLOADED] }, 1, 0] } },
+            atRisk: { $sum: { $cond: [{ $eq: ['$workloadLevel', ContributorWorkloadLevel.AT_RISK] }, 1, 0] } }
+          }
+        }
+      ]),
+      this.hotspotFileModel.aggregate<{
+        _id: Types.ObjectId;
+        total: number;
+        risky: number;
+      }>([
+        { $match: { repository: { $in: repositoryIds } } },
+        {
+          $group: {
+            _id: '$repository',
+            total: { $sum: 1 },
+            risky: { $sum: { $cond: [{ $gte: ['$riskScore', 50] }, 1, 0] } }
+          }
+        }
+      ]),
       this.hotspotFileModel.aggregate<{ _id: string; count: number }>([
         { $match: { repository: { $in: repositoryIds } } },
         { $group: { _id: '$module', count: { $sum: 1 } } },
@@ -80,31 +133,38 @@ export class DashboardService {
       ])
     ]);
 
-    const repositoryRows = await Promise.all(
-      repositories.map(async (repository) => {
-        const [
-          repoHighRiskPrs,
-          repoCriticalPrs,
-          repoStalePrs,
-          repoStaleIssues,
-          repoCriticalIssues,
-          repoReviewBottlenecks,
-          repoHotspotFiles,
-          repoRiskyHotspots
-        ] = await Promise.all([
-          this.pullRequestSnapshotModel.countDocuments({ repository: repository._id, riskLevel: PullRequestRiskLevel.HIGH }),
-          this.pullRequestSnapshotModel.countDocuments({ repository: repository._id, riskLevel: PullRequestRiskLevel.CRITICAL }),
-          this.pullRequestSnapshotModel.countDocuments({
-            repository: repository._id,
-            state: 'open',
-            createdAtGithub: { $lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-          }),
-          this.issueSnapshotModel.countDocuments({ repository: repository._id, isStale: true }),
-          this.issueSnapshotModel.countDocuments({ repository: repository._id, isCritical: true }),
-          this.pullRequestSnapshotModel.countDocuments({ repository: repository._id, state: 'open', reviewCount: 0 }),
-          this.hotspotFileModel.countDocuments({ repository: repository._id }),
-          this.hotspotFileModel.countDocuments({ repository: repository._id, riskScore: { $gte: 50 } })
-        ]);
+    const prSummaryMap = new Map(prSummaryRows.map((row) => [row._id.toString(), row]));
+    const issueSummaryMap = new Map(issueSummaryRows.map((row) => [row._id.toString(), row]));
+    const hotspotSummaryMap = new Map(hotspotSummaryRows.map((row) => [row._id.toString(), row]));
+
+    const lowPrs = prSummaryRows.reduce((sum, row) => sum + row.low, 0);
+    const mediumPrs = prSummaryRows.reduce((sum, row) => sum + row.medium, 0);
+    const highRiskPrs = prSummaryRows.reduce((sum, row) => sum + row.high, 0);
+    const criticalPrs = prSummaryRows.reduce((sum, row) => sum + row.critical, 0);
+    const stalePrs = prSummaryRows.reduce((sum, row) => sum + row.stale, 0);
+    const reviewBottlenecks = prSummaryRows.reduce((sum, row) => sum + row.reviewBottlenecks, 0);
+    const openIssues = issueSummaryRows.reduce((sum, row) => sum + row.open, 0);
+    const staleIssues = issueSummaryRows.reduce((sum, row) => sum + row.stale, 0);
+    const criticalIssues = issueSummaryRows.reduce((sum, row) => sum + row.critical, 0);
+    const balancedContributors = contributorSummaryRows.reduce((sum, row) => sum + row.balanced, 0);
+    const busyContributors = contributorSummaryRows.reduce((sum, row) => sum + row.busy, 0);
+    const overloadedContributors = contributorSummaryRows.reduce((sum, row) => sum + row.overloaded, 0);
+    const atRiskContributors = contributorSummaryRows.reduce((sum, row) => sum + row.atRisk, 0);
+    const hotspotFiles = hotspotSummaryRows.reduce((sum, row) => sum + row.total, 0);
+
+    const repositoryRows = repositories.map((repository) => {
+        const repositoryObjectId = repository._id as Types.ObjectId;
+        const prSummary = prSummaryMap.get(repositoryObjectId.toString());
+        const issueSummary = issueSummaryMap.get(repositoryObjectId.toString());
+        const hotspotSummary = hotspotSummaryMap.get(repositoryObjectId.toString());
+        const repoHighRiskPrs = prSummary?.high || 0;
+        const repoCriticalPrs = prSummary?.critical || 0;
+        const repoStalePrs = prSummary?.stale || 0;
+        const repoStaleIssues = issueSummary?.stale || 0;
+        const repoCriticalIssues = issueSummary?.critical || 0;
+        const repoReviewBottlenecks = prSummary?.reviewBottlenecks || 0;
+        const repoHotspotFiles = hotspotSummary?.total || 0;
+        const repoRiskyHotspots = hotspotSummary?.risky || 0;
 
         const health = calculateRepositoryHealth({
           highRiskPrs: repoHighRiskPrs,
@@ -128,7 +188,6 @@ export class DashboardService {
           lastSyncedAt: repository.lastSyncedAt ? repository.lastSyncedAt.toISOString() : null
         };
       })
-    );
 
     const averageHealth = repositoryRows.length
       ? Math.round(repositoryRows.reduce((sum, repository) => sum + repository.score, 0) / repositoryRows.length)
@@ -174,4 +233,3 @@ export class DashboardService {
     };
   }
 }
-

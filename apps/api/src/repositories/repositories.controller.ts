@@ -32,6 +32,7 @@ import {
   RepositorySyncSummaryDto,
   RepositoryAnalysisSummaryDto,
   RepositoryHealthDto,
+  RepositoryInsightListDto,
   RepositoryRiskSummaryDto,
   HotspotFileListDto,
   ReviewBottlenecksDto,
@@ -161,6 +162,45 @@ export class RepositoriesController {
     }
 
     return this.repositoriesService.analyzeRepositoryById(id, user.id);
+  }
+
+  @Post(':id/insights/generate')
+  @ApiOperation({ summary: 'Generate repository improvement ideas from analyzed intelligence' })
+  @ApiParam({ name: 'id', example: '684f...' })
+  @ApiResponse({ status: 200, type: RepositoryInsightListDto })
+  generateInsights(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string
+  ) {
+    if (!user?.id) {
+      throw new BadRequestException('Authenticated user missing');
+    }
+
+    return this.repositoriesService.generateRepositoryInsights(id, user.id);
+  }
+
+  @Get(':id/insights')
+  @ApiOperation({ summary: 'List repository improvement ideas' })
+  @ApiParam({ name: 'id', example: '684f...' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'pageSize', required: false, example: 50 })
+  @ApiResponse({ status: 200, type: RepositoryInsightListDto })
+  listInsights(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string
+  ) {
+    if (!user?.id) {
+      throw new BadRequestException('Authenticated user missing');
+    }
+
+    return this.repositoriesService.listRepositoryInsights(
+      id,
+      user.id,
+      page ? Number(page) : undefined,
+      pageSize ? Number(pageSize) : undefined
+    );
   }
 
   @Get(':id/risks')

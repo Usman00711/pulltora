@@ -1,6 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { HealthLevel } from '../../common/intelligence/health-score';
 import { ContributorWorkloadLevel } from '../schemas/contributor-snapshot.schema';
+import {
+  RepositoryInsightCategory,
+  RepositoryInsightImpact,
+  RepositoryInsightSource
+} from '../schemas/repository-insight.schema';
 
 export class RepositoryAnalysisSummaryDto {
   @ApiProperty()
@@ -32,6 +37,61 @@ export class RepositoryAnalysisSummaryDto {
 
   @ApiProperty()
   message!: string;
+}
+
+export class RepositoryInsightDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  repository!: string;
+
+  @ApiProperty({ enum: RepositoryInsightCategory })
+  category!: RepositoryInsightCategory;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty()
+  description!: string;
+
+  @ApiProperty()
+  rationale!: string;
+
+  @ApiProperty({ enum: RepositoryInsightImpact })
+  impact!: RepositoryInsightImpact;
+
+  @ApiProperty()
+  confidence!: number;
+
+  @ApiProperty({ enum: RepositoryInsightSource })
+  source!: RepositoryInsightSource;
+
+  @ApiProperty({ type: [String] })
+  relatedFiles!: string[];
+
+  @ApiProperty({ type: [Number] })
+  relatedPrNumbers!: number[];
+
+  @ApiProperty({ type: [Number] })
+  relatedIssueNumbers!: number[];
+
+  @ApiProperty()
+  generatedAt!: string;
+}
+
+export class RepositoryInsightListDto {
+  @ApiProperty({ type: [RepositoryInsightDto] })
+  items!: RepositoryInsightDto[];
+
+  @ApiProperty()
+  page!: number;
+
+  @ApiProperty()
+  pageSize!: number;
+
+  @ApiProperty()
+  total!: number;
 }
 
 export class HotspotFileDto {
