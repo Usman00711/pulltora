@@ -16,34 +16,36 @@ import RepositoryReleaseReadinessPage from '@/pages/repository-release-readiness
 import RepositoryTechnicalDebtPage from '@/pages/repository-technical-debt-page';
 import RepositoryWeeklyDigestPage from '@/pages/repository-weekly-digest-page';
 import SettingsPage from '@/pages/settings-page';
+import { ProtectedRoute } from './protected-route';
+import { PublicRoute } from './public-route';
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route element={<MainLayout />}>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/repositories" element={<RepositoriesPage />} />
-        <Route path="/repositories/new" element={<RepositoryNewPage />} />
+        <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+        <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/repositories" element={<ProtectedRoute><RepositoriesPage /></ProtectedRoute>} />
+        <Route path="/repositories/new" element={<ProtectedRoute><RepositoryNewPage /></ProtectedRoute>} />
 
-        <Route path="/repositories/:id" element={<RepositoryDetailPage />} />
-        <Route path="/repositories/:id/pull-requests" element={<RepositoryPullRequestsPage />} />
-        <Route path="/repositories/:id/issues" element={<RepositoryIssuesPage />} />
-        <Route path="/repositories/:id/reviews" element={<RepositoryReviewsPage />} />
-        <Route path="/repositories/:id/workload" element={<RepositoryWorkloadPage />} />
-        <Route path="/repositories/:id/hotspots" element={<RepositoryHotspotsPage />} />
+        <Route path="/repositories/:id" element={<ProtectedRoute><RepositoryDetailPage /></ProtectedRoute>} />
+        <Route path="/repositories/:id/pull-requests" element={<ProtectedRoute><RepositoryPullRequestsPage /></ProtectedRoute>} />
+        <Route path="/repositories/:id/issues" element={<ProtectedRoute><RepositoryIssuesPage /></ProtectedRoute>} />
+        <Route path="/repositories/:id/reviews" element={<ProtectedRoute><RepositoryReviewsPage /></ProtectedRoute>} />
+        <Route path="/repositories/:id/workload" element={<ProtectedRoute><RepositoryWorkloadPage /></ProtectedRoute>} />
+        <Route path="/repositories/:id/hotspots" element={<ProtectedRoute><RepositoryHotspotsPage /></ProtectedRoute>} />
         <Route
           path="/repositories/:id/release-readiness"
-          element={<RepositoryReleaseReadinessPage />}
+          element={<ProtectedRoute><RepositoryReleaseReadinessPage /></ProtectedRoute>}
         />
         <Route
           path="/repositories/:id/technical-debt"
-          element={<RepositoryTechnicalDebtPage />}
+          element={<ProtectedRoute><RepositoryTechnicalDebtPage /></ProtectedRoute>}
         />
-        <Route path="/repositories/:id/weekly-digest" element={<RepositoryWeeklyDigestPage />} />
+        <Route path="/repositories/:id/weekly-digest" element={<ProtectedRoute><RepositoryWeeklyDigestPage /></ProtectedRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

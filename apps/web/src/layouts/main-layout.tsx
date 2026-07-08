@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '@/hooks/use-auth';
 
 const navItems = [
   { label: 'Dashboard', to: '/dashboard' },
@@ -8,6 +9,7 @@ const navItems = [
 
 export function MainLayout() {
   const { pathname } = useLocation();
+  const { isAuthenticated, logout, user } = useAuth();
 
   return (
     <div className="theme-shell min-h-screen bg-background text-foreground">
@@ -47,18 +49,35 @@ export function MainLayout() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link
-              to="/login"
-              className="btn-soft"
-            >
-              Login
-            </Link>
-            <Link
-              to="/register"
-              className="btn-primary"
-            >
-              Register
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <span className="text-xs text-muted-foreground">Hi, {user?.name || 'team'}</span>
+                <button
+                  type="button"
+                  className="btn-soft"
+                  onClick={() => {
+                    logout();
+                  }}
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="btn-soft"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="btn-primary"
+                >
+                  Register
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>

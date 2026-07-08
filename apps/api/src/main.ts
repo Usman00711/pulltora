@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
@@ -21,8 +22,18 @@ async function bootstrap() {
     credentials: true
   });
 
-  app.setGlobalPrefix(process.env.API_PREFIX || '/api/v1');
+  const apiPrefix = process.env.API_PREFIX || '/api/v1';
+  app.setGlobalPrefix(apiPrefix);
   const port = Number(process.env.PORT || 3001);
+
+  const config = new DocumentBuilder()
+    .setTitle('Pulltora API')
+    .setDescription('Delivery intelligence backend for Pulltora')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup(`${apiPrefix}/docs`, app, document);
 
   await app.listen(port);
 }

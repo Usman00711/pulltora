@@ -14,12 +14,14 @@ import { WeeklyDigestModule } from './weekly-digest/weekly-digest.module';
 import { CommonModule } from './common/common.module';
 import { ConfigModule as AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     AppConfigModule,
     DatabaseModule,
+    DashboardModule,
     AuthModule,
     UsersModule,
     RepositoriesModule,

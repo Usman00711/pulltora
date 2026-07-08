@@ -1,4 +1,29 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
 
-@Module({})
+@Module({
+  imports: [
+    ConfigModule,
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const uri = configService.get<string>('MONGODB_URI');
+
+        if (!uri) {
+          throw new Error(
+            'Missing required environment variable: MONGODB_URI'
+          );
+        }
+
+        return {
+          uri,
+          dbName: configService.get<string>('MONGODB_DB_NAME') || 'pulltora'
+        };
+      }
+    })
+  ],
+  exports: [MongooseModule]
+})
 export class DatabaseModule {}
