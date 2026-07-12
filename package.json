@@ -22,6 +22,7 @@
     "typecheck": "npm run typecheck:web && npm run typecheck:api",
     "typecheck:web": "npm run typecheck --workspace @devpulse/web",
     "typecheck:api": "npm run typecheck --workspace @devpulse/api",
+    "check:env": "node scripts/check-env.mjs",
     "install:all": "npm install"
   },
   "devDependencies": {
