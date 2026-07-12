@@ -490,7 +490,10 @@ export class RepositoriesService {
     };
   }
 
-  private normalizeAiInsightDrafts(value: unknown): RepositoryInsightDraft[] {
+  private normalizeAiInsightDrafts(
+    value: unknown,
+    source: RepositoryInsightSource
+  ): RepositoryInsightDraft[] {
     const rawItems =
       Array.isArray(value)
         ? value
@@ -520,7 +523,7 @@ export class RepositoriesService {
             ? (impact as RepositoryInsightImpact)
             : RepositoryInsightImpact.MEDIUM,
           confidence: Math.max(0, Math.min(Number(payload.confidence) || 65, 100)),
-          source: RepositoryInsightSource.LOCAL_AI,
+          source,
           relatedFiles: Array.isArray(payload.relatedFiles)
             ? payload.relatedFiles.map((file) => this.safeTrim(file)).filter(Boolean).slice(0, 12)
             : [],
@@ -606,10 +609,102 @@ export class RepositoriesService {
       }
 
       const parsed = this.parseAiJson(content);
-      return this.normalizeAiInsightDrafts(parsed);
+      return this.normalizeAiInsightDrafts(parsed, RepositoryInsightSource.LOCAL_AI);
     } catch {
       return [];
     }
+  }
+
+  private async generateGeminiAiInsights(
+    context: RepositoryInsightContext
+  ): Promise<RepositoryInsightDraft[]> {
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY')?.trim();
+    const model = this.configService.get<string>('AI_MODEL') || 'gemini-1.5-flash';
+
+    if (!apiKey) {
+      return [];
+    }
+
+    const prompt = [
+      'You are Pulltora, an engineering delivery intelligence assistant.',
+      'Generate up to 5 practical repository improvement ideas from this sanitized summary only.',
+      'Do not invent source-code details. Do not mention secrets. Return JSON only with an "insights" array.',
+      'Allowed categories: ARCHITECTURE, TESTING, SECURITY, REVIEW_PROCESS, WORKLOAD, RELEASE_RISK, MAINTAINABILITY, DX.',
+      'Allowed impacts: LOW, MEDIUM, HIGH, CRITICAL.',
+      'Each item needs title, description, rationale, category, impact, confidence, relatedFiles, relatedPrNumbers, relatedIssueNumbers.',
+      '',
+      buildRepositoryInsightContextSummary(context)
+    ].join('\n');
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: prompt }]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.35,
+              responseMimeType: 'application/json'
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            candidates?: Array<{
+              content?: {
+                parts?: Array<{ text?: string }>;
+              };
+            }>;
+          }
+        | null;
+      const content = payload?.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || '')
+        .join('')
+        .trim();
+
+      if (!content) {
+        return [];
+      }
+
+      const parsed = this.parseAiJson(content);
+      return this.normalizeAiInsightDrafts(parsed, RepositoryInsightSource.GEMINI_AI);
+    } catch {
+      return [];
+    }
+  }
+
+  private async generateAiInsights(
+    context: RepositoryInsightContext
+  ): Promise<RepositoryInsightDraft[]> {
+    const enabled = this.configService.get<string>('AI_ENABLED')?.toLowerCase() === 'true';
+    const provider = this.configService.get<string>('AI_PROVIDER')?.toLowerCase() || 'none';
+
+    if (!enabled) {
+      return [];
+    }
+
+    if (provider === 'gemini') {
+      return this.generateGeminiAiInsights(context);
+    }
+
+    if (provider === 'ollama') {
+      return this.generateLocalAiInsights(context);
+    }
+
+    return [];
   }
 
   private async generateAndStoreInsights(
@@ -620,7 +715,7 @@ export class RepositoriesService {
     const context = await this.buildInsightContext(repository, health);
     const generatedAt = new Date();
     const ruleInsights = generateRuleBasedRepositoryInsights(context);
-    const aiInsights = await this.generateLocalAiInsights(context);
+    const aiInsights = await this.generateAiInsights(context);
     const insights = [...ruleInsights, ...aiInsights];
 
     await this.repositoryInsightModel.deleteMany({ repository: repository._id });

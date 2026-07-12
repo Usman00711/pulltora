@@ -22,7 +22,8 @@ export enum RepositoryInsightImpact {
 
 export enum RepositoryInsightSource {
   RULES = 'RULES',
-  LOCAL_AI = 'LOCAL_AI'
+  LOCAL_AI = 'LOCAL_AI',
+  GEMINI_AI = 'GEMINI_AI'
 }
 
 @Schema({ timestamps: true })

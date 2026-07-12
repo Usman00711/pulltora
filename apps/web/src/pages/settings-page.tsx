@@ -89,13 +89,21 @@ export default function SettingsPage() {
               <h2 className="mt-3 text-lg font-semibold">AI Insights</h2>
             </div>
             <StatusBadge
-              label={data?.ai.enabled ? data.ai.provider : 'Rules Only'}
+              label={
+                data?.ai.enabled
+                  ? data.ai.provider === 'gemini'
+                    ? 'Gemini'
+                    : 'Ollama'
+                  : 'Rules Only'
+              }
               tone={data?.ai.enabled ? 'cyan' : 'violet'}
             />
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
             {data?.ai.enabled
-              ? 'Local AI enrichment is enabled. Pulltora still keeps rule-based insights as a fallback if the local model is unavailable.'
+              ? data.ai.provider === 'gemini'
+                ? 'Gemini enrichment is enabled through the backend. Pulltora still keeps rule-based insights as a fallback if Gemini is unavailable.'
+                : 'Local AI enrichment is enabled. Pulltora still keeps rule-based insights as a fallback if the local model is unavailable.'
               : 'Pulltora is using deterministic rule-based improvement ideas. This is free, private, and works without any AI server.'}
           </p>
           <div className="mt-5 grid gap-3 text-sm">
@@ -104,9 +112,17 @@ export default function SettingsPage() {
               <p className="mt-1 font-semibold text-foreground">{data?.ai.model || 'Not configured'}</p>
             </div>
             <div className="rounded-2xl border border-border/70 bg-background/45 p-4">
-              <p className="text-muted-foreground">Local endpoint</p>
+              <p className="text-muted-foreground">
+                {data?.ai.provider === 'gemini' ? 'Gemini API key' : 'Local endpoint'}
+              </p>
               <p className="mt-1 font-semibold text-foreground">
-                {data?.ai.baseUrlConfigured ? 'Configured' : 'Not configured'}
+                {data?.ai.provider === 'gemini'
+                  ? data.ai.apiKeyConfigured
+                    ? 'Configured'
+                    : 'Not configured'
+                  : data?.ai.baseUrlConfigured
+                    ? 'Configured'
+                    : 'Not configured'}
               </p>
             </div>
           </div>
