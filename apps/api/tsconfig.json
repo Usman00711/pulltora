@@ -1,14 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "module": "CommonJS",
+    "module": "Node16",
     "target": "ES2022",
-    "ignoreDeprecations": "6.0",
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "outDir": "./dist",
-    "baseUrl": "./",
     "paths": {
       "@devpulse/shared": ["../../packages/shared"]
     }
