@@ -4,45 +4,10 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
-
-function isTruthy(value?: string) {
-  return ['1', 'true', 'yes', 'on'].includes((value || '').toLowerCase());
-}
-
-function validateProductionEnvironment() {
-  if (process.env.NODE_ENV !== 'production') {
-    return;
-  }
-
-  const required = [
-    'MONGODB_URI',
-    'MONGODB_DB_NAME',
-    'JWT_SECRET',
-    'ALLOWED_ORIGINS'
-  ];
-  const missing = required.filter((key) => !process.env[key]?.trim());
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required production environment variables: ${missing.join(', ')}`
-    );
-  }
-
-  const allowedOrigins = process.env.ALLOWED_ORIGINS || '';
-
-  if (allowedOrigins.includes('*') || allowedOrigins.includes('localhost')) {
-    throw new Error(
-      'ALLOWED_ORIGINS must contain deployed frontend origins only in production.'
-    );
-  }
-
-  if ((process.env.JWT_SECRET || '').length < 32) {
-    throw new Error('JWT_SECRET must be at least 32 characters in production.');
-  }
-}
+import { isTruthy, validateEnvironment } from './config/env.validation';
 
 async function bootstrap() {
-  validateProductionEnvironment();
+  validateEnvironment(process.env);
 
   const app = await NestFactory.create(AppModule);
 

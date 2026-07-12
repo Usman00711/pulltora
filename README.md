@@ -50,6 +50,49 @@ Run:
 - `npm run lint` — lint all workspaces
 - `npm run test` — run all workspace tests
 - `npm run typecheck` — typecheck all workspaces
+- `npm run check:env` — verify app and production env examples match Pulltora's env contract
+
+## Environment Variables
+
+Pulltora intentionally does not use a root `.env` for local runtime. Keep environment files app-specific so Nest and Vite each load the values they actually need.
+
+Runtime files:
+
+- `apps/api/.env` is used by the NestJS backend.
+- `apps/web/.env` is used by the Vite frontend.
+- `.env.production.example` is the deployment checklist for hosting providers.
+- `apps/api/.env.example` and `apps/web/.env.example` are the local setup templates.
+
+The root `.env` file is not part of the local workflow. If one exists on your machine from earlier setup, treat it as obsolete and move any needed values into `apps/api/.env` or `apps/web/.env`.
+
+| Variable | Owner | Production required | Safe example | Purpose |
+| --- | --- | --- | --- | --- |
+| `NODE_ENV` | api/deployment | Yes | `production` | Enables production validation and runtime behavior. |
+| `PORT` | api/deployment | Provider-dependent | `3001` | API port. Hosting providers may override this. |
+| `API_PREFIX` | api | Yes | `/api/v1` | Global NestJS API prefix. |
+| `ALLOWED_ORIGINS` | api | Yes | `https://your-vercel-app.vercel.app` | Comma-separated frontend origins allowed by CORS. |
+| `MONGODB_URI` | api | Yes | `mongodb+srv://...` | MongoDB Atlas connection string. |
+| `MONGODB_DB_NAME` | api | Yes | `pulltora_prod` | MongoDB database name. |
+| `JWT_SECRET` | api | Yes | generated secret | JWT signing secret, at least 32 characters in production. |
+| `JWT_ACCESS_EXPIRES_IN` | api | Yes | `15m` | Access token lifetime. |
+| `JWT_REFRESH_EXPIRES_IN` | api | Yes | `7d` | Refresh token lifetime. |
+| `GITHUB_TOKEN` | api | No | empty or token | Optional GitHub token for higher API limits. |
+| `AI_ENABLED` | api | No | `true` | Enables AI-enriched improvement ideas. |
+| `AI_PROVIDER` | api | No | `gemini` | Supported values: `none`, `ollama`, `gemini`. |
+| `AI_MODEL` | api | No | `gemini-1.5-flash` | Model name used by the selected AI provider. |
+| `AI_BASE_URL` | api | Required for Ollama | `http://localhost:11434` | Local Ollama endpoint. |
+| `GEMINI_API_KEY` | api | Required when Gemini is enabled | empty locally | Gemini API key; never expose in frontend env. |
+| `ENABLE_SWAGGER` | api | No | `false` | Enables Swagger docs in production when explicitly true. |
+| `VITE_API_BASE_URL` | web | Yes | `https://your-api-host/api/v1` | Frontend API base URL. |
+
+Gemini deployment values:
+
+```bash
+AI_ENABLED=true
+AI_PROVIDER=gemini
+AI_MODEL=gemini-1.5-flash
+GEMINI_API_KEY=<YOUR_GEMINI_API_KEY>
+```
 
 ## Production readiness
 
@@ -61,7 +104,7 @@ Production defaults are intentionally stricter than local development:
 - AI insights support deterministic rules, local Ollama, or hosted Gemini.
 - Secret values are never returned by the Settings API.
 
-Use `.env.production.example` as the deployment checklist.
+Use `.env.production.example` as the deployment checklist. Local app runtime values belong in `apps/api/.env` and `apps/web/.env`.
 
 ## Free deployment guide
 
