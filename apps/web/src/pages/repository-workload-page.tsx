@@ -100,31 +100,31 @@ export default function RepositoryWorkloadPage() {
           description="Sync GitHub data and run Analyze Repository to calculate contributor workload."
         />
       ) : (
-        <article className="subtle-card overflow-x-auto">
-          <table className="w-full text-sm">
+        <article className="subtle-card data-table-card">
+          <table className="data-table min-w-[980px]">
             <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-4">Contributor</th>
-                <th className="py-2 pr-4">Commits</th>
-                <th className="py-2 pr-4">Open PRs</th>
-                <th className="py-2 pr-4">Assigned issues</th>
-                <th className="py-2 pr-4">Pending reviews</th>
-                <th className="py-2 pr-4">Stale items</th>
-                <th className="py-2 pr-4">Load score</th>
-                <th className="py-2 pr-4">Level</th>
+              <tr>
+                <th className="cell-title">Contributor</th>
+                <th className="cell-right w-24">Commits</th>
+                <th className="cell-right w-24">Open PRs</th>
+                <th className="cell-right w-36">Assigned issues</th>
+                <th className="cell-right w-36">Pending reviews</th>
+                <th className="cell-right w-28">Stale items</th>
+                <th className="cell-right w-28">Load score</th>
+                <th className="cell-status w-40">Level</th>
               </tr>
             </thead>
             <tbody>
               {contributors.map((contributor) => (
-                <tr key={contributor.id} className="border-t border-slate-800/60">
-                  <td className="py-2 pr-4">{contributor.username}</td>
-                  <td className="py-2 pr-4">{contributor.commits}</td>
-                  <td className="py-2 pr-4">{contributor.openPrs}</td>
-                  <td className="py-2 pr-4">{contributor.assignedIssues}</td>
-                  <td className="py-2 pr-4">{contributor.pendingReviews}</td>
-                  <td className="py-2 pr-4">{contributor.staleItems}</td>
-                  <td className="py-2 pr-4">{contributor.workloadScore}</td>
-                  <td className="py-2 pr-4">
+                <tr key={contributor.id} className="data-table-row">
+                  <td className="cell-title font-semibold">{contributor.username}</td>
+                  <td className="cell-right cell-mono">{contributor.commits}</td>
+                  <td className="cell-right cell-mono">{contributor.openPrs}</td>
+                  <td className="cell-right cell-mono">{contributor.assignedIssues}</td>
+                  <td className="cell-right cell-mono">{contributor.pendingReviews}</td>
+                  <td className="cell-right cell-mono">{contributor.staleItems}</td>
+                  <td className="cell-right cell-mono">{contributor.workloadScore}</td>
+                  <td className="cell-status">
                     <StatusBadge label={contributor.workloadLevel.replace('_', ' ')} tone={getWorkloadTone(contributor.workloadLevel)} />
                   </td>
                 </tr>

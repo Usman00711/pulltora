@@ -119,38 +119,38 @@ export default function RepositoryPullRequestsPage() {
           description="No pull requests match the selected search and filters. Run Analyze Repository after sync to refresh risk scores."
         />
       ) : (
-        <article className="subtle-card overflow-x-auto">
-          <table className="w-full text-sm">
+        <article className="subtle-card data-table-card">
+          <table className="data-table min-w-[1040px]">
             <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-4">#</th>
-                <th className="py-2 pr-4">Title</th>
-                <th className="py-2 pr-4">Author</th>
-                <th className="py-2 pr-4">State</th>
-                <th className="py-2 pr-4">Files</th>
-                <th className="py-2 pr-4">Reviews</th>
-                <th className="py-2 pr-4">Risk</th>
-                <th className="py-2 pr-4">Reasons</th>
+              <tr>
+                <th className="cell-number">#</th>
+                <th className="cell-title">Title</th>
+                <th className="w-36">Author</th>
+                <th className="w-24">State</th>
+                <th className="cell-right w-24">Files</th>
+                <th className="cell-right w-24">Reviews</th>
+                <th className="cell-status w-40">Risk</th>
+                <th className="cell-actions">Reasons</th>
               </tr>
             </thead>
             <tbody>
               {filteredPullRequests.map((pullRequest) => (
                 <Fragment key={pullRequest.id}>
-                  <tr className="border-t border-slate-800/60">
-                    <td className="py-2 pr-4">{pullRequest.number}</td>
-                    <td className="py-2 pr-4">
-                      <a href={pullRequest.url} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">
+                  <tr className="data-table-row">
+                    <td className="cell-number">#{pullRequest.number}</td>
+                    <td className="cell-title">
+                      <a href={pullRequest.url} target="_blank" rel="noreferrer" title={pullRequest.title} className="cell-truncate font-semibold text-cyan-200 hover:text-cyan-100">
                         {pullRequest.title}
                       </a>
                     </td>
-                    <td className="py-2 pr-4">{pullRequest.author}</td>
-                    <td className="py-2 pr-4">{pullRequest.state}</td>
-                    <td className="py-2 pr-4">{pullRequest.filesChanged}</td>
-                    <td className="py-2 pr-4">{pullRequest.reviewCount}</td>
-                    <td className="py-2 pr-4">
+                    <td className="cell-text cell-truncate" title={pullRequest.author}>{pullRequest.author}</td>
+                    <td className="cell-status capitalize">{pullRequest.state}</td>
+                    <td className="cell-right cell-mono">{pullRequest.filesChanged}</td>
+                    <td className="cell-right cell-mono">{pullRequest.reviewCount}</td>
+                    <td className="cell-status">
                       <StatusBadge label={`${pullRequest.riskLevel} · ${pullRequest.riskScore}`} tone={getRiskTone(pullRequest.riskLevel)} />
                     </td>
-                    <td className="py-2 pr-4">
+                    <td className="cell-actions">
                       <button
                         type="button"
                         className="btn-soft text-xs"
@@ -161,8 +161,8 @@ export default function RepositoryPullRequestsPage() {
                     </td>
                   </tr>
                   {expandedId === pullRequest.id ? (
-                    <tr className="border-t border-slate-800/60 bg-cyan-400/5">
-                      <td colSpan={8} className="px-4 py-3 text-xs text-muted-foreground">
+                    <tr className="data-table-expanded">
+                      <td colSpan={8} className="text-xs text-muted-foreground">
                         {pullRequest.riskReasons.length ? pullRequest.riskReasons.join(' · ') : 'No risk reasons yet. Run Analyze Repository to refresh scoring.'}
                       </td>
                     </tr>

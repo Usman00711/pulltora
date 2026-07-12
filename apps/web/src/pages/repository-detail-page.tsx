@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { HealthScoreCard } from '@/components/intelligence/health-score-card';
@@ -25,10 +25,6 @@ export default function RepositoryDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const [syncMessage, setSyncMessage] = useState('');
-  const [syncError, setSyncError] = useState('');
-  const [analysisMessage, setAnalysisMessage] = useState('');
-  const [analysisError, setAnalysisError] = useState('');
 
   const {
     data,
@@ -100,10 +96,8 @@ export default function RepositoryDetailPage() {
 
   const syncMutation = useMutation({
     mutationFn: () => repositoryService.syncRepository(id),
-    onSuccess: async (summary) => {
-      setSyncError('');
-      setSyncMessage(summary.message);
-      showToast(summary.message, 'success');
+    onSuccess: async () => {
+      showToast('GitHub sync complete', 'success');
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['repository', id] }),
@@ -120,26 +114,23 @@ export default function RepositoryDetailPage() {
 
       if (/rate.?limit|rate limit/i.test(message)) {
         setSyncError('GitHub rate limit reached. Add a GITHUB_TOKEN or try again later.');
+        showToast('GitHub rate limit reached. Add a GITHUB_TOKEN or try again later.', 'error');
         return;
       }
 
       if (/not found/i.test(message)) {
-        setSyncError('GitHub repository not found. Please verify owner and repository name.');
+        showToast('GitHub repository not found', 'error');
         return;
       }
 
-      setSyncError(message);
-      setSyncMessage('');
-      showToast(message, 'error');
+      showToast('Unable to sync repository', 'error');
     }
   });
 
   const analyzeMutation = useMutation({
     mutationFn: () => repositoryService.analyzeRepository(id),
-    onSuccess: async (summary) => {
-      setAnalysisError('');
-      setAnalysisMessage(summary.message);
-      showToast(summary.message, 'success');
+    onSuccess: async () => {
+      showToast('Repository analysis complete', 'success');
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['repositoryHealth', id] }),
@@ -156,8 +147,6 @@ export default function RepositoryDetailPage() {
     onError: (analysisErr) => {
       const message =
         analysisErr instanceof Error ? analysisErr.message : 'Failed to analyze repository';
-      setAnalysisError(message);
-      setAnalysisMessage('');
       showToast(message, 'error');
     }
   });
@@ -185,14 +174,10 @@ export default function RepositoryDetailPage() {
   };
 
   const handleSync = () => {
-    setSyncMessage('');
-    setSyncError('');
     syncMutation.mutate();
   };
 
   const handleAnalyze = () => {
-    setAnalysisMessage('');
-    setAnalysisError('');
     analyzeMutation.mutate();
   };
 
@@ -201,7 +186,7 @@ export default function RepositoryDetailPage() {
   };
 
   if (isLoading) {
-    return <SkeletonPanel rows={5} />;
+    return <SkeletonPanel rows={6} />;
   }
 
   if (isError) {
@@ -221,16 +206,22 @@ export default function RepositoryDetailPage() {
 
   return (
     <section className="space-y-5">
-      <div className="page-title">
+      <div className="page-title motion-rise">
         <div>
           <p className="kpi-badge">Repository Workspace</p>
-          <h1 className="mt-2 text-3xl font-bold">{data.fullName}</h1>
-          <p className="text-sm text-muted-foreground">{data.description || 'No description added yet.'}</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{data.fullName}</h1>
+          <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{data.description || 'No description added yet.'}</p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <span className="status-pill status-ok">{data.language || 'Unknown stack'}</span>
+            <span className="status-pill">Default: {data.defaultBranch || 'main'}</span>
+            <span className="status-pill">{data.stars} stars</span>
+            <span className="status-pill">{data.forks} forks</span>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <button
             type="button"
-            className="btn-soft"
+            className="btn-primary"
             onClick={handleSync}
             disabled={syncMutation.isPending}
           >
@@ -250,7 +241,7 @@ export default function RepositoryDetailPage() {
           </a>
           <button
             type="button"
-            className="btn-soft text-red-300"
+            className="btn-danger"
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
           >
@@ -258,11 +249,6 @@ export default function RepositoryDetailPage() {
           </button>
         </div>
       </div>
-
-      {syncMessage ? <p className="text-sm text-emerald-300">✅ {syncMessage}</p> : null}
-      {syncError ? <p className="text-sm text-red-300">⚠️ {syncError}</p> : null}
-      {analysisMessage ? <p className="text-sm text-emerald-300">{analysisMessage}</p> : null}
-      {analysisError ? <p className="text-sm text-red-300">{analysisError}</p> : null}
 
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-1">
@@ -277,7 +263,7 @@ export default function RepositoryDetailPage() {
           )}
         </div>
         <div className="grid gap-3 sm:grid-cols-3 lg:col-span-2">
-          <article className="panel p-4">
+          <article className="panel glow-border p-4">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Sync Status</p>
             <div className="mt-4">
               <StatusBadge label={data.lastSyncedAt ? 'Synced' : 'Never Synced'} tone={data.lastSyncedAt ? 'green' : 'amber'} />
@@ -286,7 +272,7 @@ export default function RepositoryDetailPage() {
               {data.lastSyncedAt ? new Date(data.lastSyncedAt).toLocaleString() : 'Run GitHub sync to collect snapshots.'}
             </p>
           </article>
-          <article className="panel p-4">
+          <article className="panel glow-border p-4">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Analyze Status</p>
             <div className="mt-4">
               <StatusBadge
@@ -298,7 +284,7 @@ export default function RepositoryDetailPage() {
               {healthQuery.data?.lastAnalyzedAt ? new Date(healthQuery.data.lastAnalyzedAt).toLocaleString() : 'Analyze after sync to score risks.'}
             </p>
           </article>
-          <article className="panel p-4">
+          <article className="panel glow-border p-4">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Health Level</p>
             <div className="mt-4">
               {healthQuery.data ? (
@@ -312,35 +298,17 @@ export default function RepositoryDetailPage() {
         </div>
       </section>
 
-      <article className="panel p-4">
-        <h2 className="mb-3 text-sm font-semibold">Repository Sync Snapshot</h2>
-        <div className="grid gap-2 text-sm sm:grid-cols-3">
-          <p className="text-muted-foreground">
-            Pull requests synced: <span className="text-foreground font-semibold">{syncedCounts.pullRequests}</span>
-          </p>
-          <p className="text-muted-foreground">
-            Issues synced: <span className="text-foreground font-semibold">{syncedCounts.issues}</span>
-          </p>
-          <p className="text-muted-foreground">
-            Contributors synced: <span className="text-foreground font-semibold">{syncedCounts.contributors}</span>
-          </p>
-          <p className="text-muted-foreground">
-            Last synced: <span className="text-foreground font-semibold">{data.lastSyncedAt ? new Date(data.lastSyncedAt).toLocaleString() : 'Not synced yet'}</span>
-          </p>
-          <p className="text-muted-foreground">
-            Stars: <span className="text-foreground font-semibold">{data.stars}</span>
-          </p>
-          <p className="text-muted-foreground">
-            Forks: <span className="text-foreground font-semibold">{data.forks}</span>
-          </p>
-          <p className="text-muted-foreground">
-            Language: <span className="text-foreground font-semibold">{data.language || '—'}</span>
-          </p>
-          <p className="text-muted-foreground">
-            Default branch: <span className="text-foreground font-semibold">{data.defaultBranch || '—'}</span>
-          </p>
-        </div>
-      </article>
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard label="Pull requests synced" value={syncedCounts.pullRequests} tone="cyan" />
+        <MetricCard label="Issues synced" value={syncedCounts.issues} tone="violet" />
+        <MetricCard label="Contributors synced" value={syncedCounts.contributors} tone="green" />
+        <MetricCard
+          label="Last synced"
+          value={data.lastSyncedAt ? 'Ready' : 'Pending'}
+          detail={data.lastSyncedAt ? new Date(data.lastSyncedAt).toLocaleString() : 'Run GitHub sync to collect data'}
+          tone={data.lastSyncedAt ? 'green' : 'amber'}
+        />
+      </section>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <MetricCard label="High-risk PRs" value={riskQuery.data?.highRiskPrs ?? 0} tone="amber" />
@@ -350,11 +318,11 @@ export default function RepositoryDetailPage() {
         <MetricCard label="Hotspots" value={riskQuery.data?.hotspotFiles ?? 0} tone="cyan" />
       </section>
 
-      <article className="panel p-4">
+      <article className="panel p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="kpi-badge">AI Improvement Ideas</p>
-            <h2 className="mt-2 text-lg font-semibold">Betterment recommendations</h2>
+            <h2 className="mt-2 text-xl font-bold">Betterment recommendations</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Generated from Pulltora analysis data. Local AI can enrich these later, but rule-based ideas work for free by default.
             </p>
@@ -393,7 +361,7 @@ export default function RepositoryDetailPage() {
               return (
                 <div
                   key={insight.id}
-                  className="rounded-2xl border border-border/80 bg-background/45 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.25)] transition hover:-translate-y-0.5 hover:border-brand/50 hover:bg-brand/10"
+                  className="surface-float rounded-2xl border border-border/70 bg-background/45 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.25)] transition hover:-translate-y-0.5 hover:border-brand/50 hover:bg-brand/10"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${impactTone}`}>
@@ -446,7 +414,7 @@ export default function RepositoryDetailPage() {
       </article>
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <article className="panel p-4">
+        <article className="panel p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">Pull Requests</h2>
             <Link className="text-xs font-semibold text-brand hover:text-brand-foreground" to={`/repositories/${id}/pull-requests`}>
@@ -480,7 +448,7 @@ export default function RepositoryDetailPage() {
           )}
         </article>
 
-        <article className="panel p-4">
+        <article className="panel p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">Issues</h2>
             <Link className="text-xs font-semibold text-brand hover:text-brand-foreground" to={`/repositories/${id}/issues`}>
@@ -515,7 +483,7 @@ export default function RepositoryDetailPage() {
           )}
         </article>
 
-        <article className="panel p-4">
+        <article className="panel p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">Contributors</h2>
             <Link className="text-xs font-semibold text-brand hover:text-brand-foreground" to={`/repositories/${id}/workload`}>
@@ -553,7 +521,7 @@ export default function RepositoryDetailPage() {
         </article>
       </section>
 
-      <article className="panel p-4">
+      <article className="panel p-5">
         <div className="grid gap-3 text-sm sm:grid-cols-3">
           <p className="text-muted-foreground">
             Owner: <span className="text-foreground font-semibold">{data.owner}</span>
@@ -567,12 +535,12 @@ export default function RepositoryDetailPage() {
         </div>
       </article>
 
-      <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      <nav className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {sectionLinks.map((section) => (
           <Link
             key={section.label}
             to={section.to ? `/repositories/${id}/${section.to}` : `/repositories/${id}`}
-            className="section-tile text-sm text-center hover-lift"
+            className="section-tile text-center text-sm font-semibold hover-lift"
           >
             {section.label}
           </Link>

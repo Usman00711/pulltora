@@ -14,6 +14,18 @@ import { repositoryService } from '@/services/repository-service';
 const chartColors = ['#22d3ee', '#8b5cf6', '#34d399', '#f59e0b', '#fb7185', '#a78bfa'];
 const DASHBOARD_CACHE_KEY = 'pulltora_dashboard_intelligence_cache';
 
+function hasChartData(data: Array<{ value: number }>) {
+  return data.some((point) => point.value > 0);
+}
+
+function ChartEmptyState({ label }: { label: string }) {
+  return (
+    <div className="flex h-full items-center justify-center rounded-2xl border border-border/70 bg-background/35 text-center text-sm text-muted-foreground">
+      {label}
+    </div>
+  );
+}
+
 function readDashboardCache(): DashboardIntelligence | undefined {
   try {
     const cached = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
@@ -53,15 +65,7 @@ export default function DashboardPage() {
   }, [data]);
 
   if (isLoading) {
-    return (
-      <section className="space-y-6">
-        <SkeletonPanel rows={4} />
-        <div className="grid gap-4 lg:grid-cols-2">
-          <SkeletonPanel />
-          <SkeletonPanel />
-        </div>
-      </section>
-    );
+    return <SkeletonPanel variant="dashboard" />;
   }
 
   if (isError) {
@@ -110,7 +114,10 @@ export default function DashboardPage() {
           <h1 className="mt-2 text-3xl font-black">Delivery Dashboard</h1>
           <p className="text-sm text-muted-foreground">Engineering intelligence across every connected repository.</p>
         </div>
-        <span className="kpi-badge status-ok">Live Intelligence</span>
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <span className="kpi-badge status-ok">Live Intelligence</span>
+          <span className="text-xs text-muted-foreground">Updated from latest analyzed snapshots</span>
+        </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-4">
@@ -127,91 +134,109 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <ChartCard title="PR Risk Distribution">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.prRiskDistribution}>
-              <XAxis dataKey="name" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" allowDecimals={false} />
-              <Tooltip contentStyle={{ background: '#080b12', border: '1px solid #253044', color: '#e5faff' }} />
-              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                {data.prRiskDistribution.map((_, index) => (
-                  <Cell key={index} fill={chartColors[index % chartColors.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {hasChartData(data.prRiskDistribution) ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.prRiskDistribution}>
+                <XAxis dataKey="name" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" allowDecimals={false} />
+                <Tooltip contentStyle={{ background: '#080b12', border: '1px solid #253044', color: '#e5faff' }} />
+                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                  {data.prRiskDistribution.map((_, index) => (
+                    <Cell key={index} fill={chartColors[index % chartColors.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <ChartEmptyState label="No pull request risk data yet" />
+          )}
         </ChartCard>
 
         <ChartCard title="Issues by Status">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={data.issueDistribution} dataKey="value" nameKey="name" innerRadius={58} outerRadius={88} paddingAngle={4}>
-                {data.issueDistribution.map((_, index) => (
-                  <Cell key={index} fill={chartColors[index % chartColors.length]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ background: '#080b12', border: '1px solid #253044', color: '#e5faff' }} />
-            </PieChart>
-          </ResponsiveContainer>
+          {hasChartData(data.issueDistribution) ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={data.issueDistribution} dataKey="value" nameKey="name" innerRadius={58} outerRadius={88} paddingAngle={4}>
+                  {data.issueDistribution.map((_, index) => (
+                    <Cell key={index} fill={chartColors[index % chartColors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ background: '#080b12', border: '1px solid #253044', color: '#e5faff' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <ChartEmptyState label="No issue signals yet" />
+          )}
         </ChartCard>
 
         <ChartCard title="Contributor Workload">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.workloadDistribution}>
-              <XAxis dataKey="name" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" allowDecimals={false} />
-              <Tooltip contentStyle={{ background: '#080b12', border: '1px solid #253044', color: '#e5faff' }} />
-              <Bar dataKey="value" fill="#34d399" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {hasChartData(data.workloadDistribution) ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.workloadDistribution}>
+                <XAxis dataKey="name" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" allowDecimals={false} />
+                <Tooltip contentStyle={{ background: '#080b12', border: '1px solid #253044', color: '#e5faff' }} />
+                <Bar dataKey="value" fill="#34d399" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <ChartEmptyState label="No workload signals yet" />
+          )}
         </ChartCard>
 
         <ChartCard title="Hotspot Modules">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.hotspotModules}>
-              <XAxis dataKey="name" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" allowDecimals={false} />
-              <Tooltip contentStyle={{ background: '#080b12', border: '1px solid #253044', color: '#e5faff' }} />
-              <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {hasChartData(data.hotspotModules) ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.hotspotModules}>
+                <XAxis dataKey="name" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" allowDecimals={false} />
+                <Tooltip contentStyle={{ background: '#080b12', border: '1px solid #253044', color: '#e5faff' }} />
+                <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <ChartEmptyState label="No hotspot modules yet" />
+          )}
         </ChartCard>
       </div>
 
-      <article className="panel overflow-x-auto p-5">
+      <article className="panel p-5">
         <h2 className="text-sm font-bold uppercase tracking-[0.16em] text-muted-foreground">Repository Health</h2>
-        <table className="mt-4 w-full text-sm">
+        <div className="data-table-card mt-4">
+        <table className="data-table min-w-[900px]">
           <thead>
-            <tr className="text-left text-muted-foreground">
-              <th className="py-2 pr-4">Repository</th>
-              <th className="py-2 pr-4">Health</th>
-              <th className="py-2 pr-4">High-risk PRs</th>
-              <th className="py-2 pr-4">Critical issues</th>
-              <th className="py-2 pr-4">Reviews</th>
-              <th className="py-2 pr-4">Hotspots</th>
+            <tr>
+              <th className="cell-title">Repository</th>
+              <th className="cell-status w-48">Health</th>
+              <th className="cell-right w-32">High-risk PRs</th>
+              <th className="cell-right w-36">Critical issues</th>
+              <th className="cell-right w-28">Reviews</th>
+              <th className="cell-right w-28">Hotspots</th>
             </tr>
           </thead>
           <tbody>
             {data.repositories.map((repository) => (
-              <tr key={repository.repositoryId} className="border-t border-slate-800/60">
-                <td className="py-3 pr-4">
-                  <Link className="font-semibold text-cyan-200 hover:text-cyan-100" to={`/repositories/${repository.repositoryId}`}>
+              <tr key={repository.repositoryId} className="data-table-row">
+                <td className="cell-title">
+                  <Link className="cell-truncate font-semibold text-cyan-200 hover:text-cyan-100" title={repository.fullName} to={`/repositories/${repository.repositoryId}`}>
                     {repository.fullName}
                   </Link>
                 </td>
-                <td className="py-3 pr-4">
+                <td className="cell-status">
                   <div className="flex items-center gap-2">
                     <span className="font-bold">{repository.score}</span>
                     <StatusBadge label={repository.level.replace('_', ' ')} tone={getHealthTone(repository.level)} />
                   </div>
                 </td>
-                <td className="py-3 pr-4">{repository.highRiskPrs}</td>
-                <td className="py-3 pr-4">{repository.criticalIssues}</td>
-                <td className="py-3 pr-4">{repository.reviewBottlenecks}</td>
-                <td className="py-3 pr-4">{repository.hotspotFiles}</td>
+                <td className="cell-right cell-mono">{repository.highRiskPrs}</td>
+                <td className="cell-right cell-mono">{repository.criticalIssues}</td>
+                <td className="cell-right cell-mono">{repository.reviewBottlenecks}</td>
+                <td className="cell-right cell-mono">{repository.hotspotFiles}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       </article>
     </section>
   );

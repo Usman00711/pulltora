@@ -13,14 +13,14 @@ export function MainLayout() {
 
   return (
     <div className="theme-shell min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur-2xl backdrop-saturate-150">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/78 backdrop-blur-2xl backdrop-saturate-150">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
           <Link
             to="/"
             className="flex items-center gap-2"
             aria-label="Pulltora home"
           >
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface/90 shadow-sm shadow-primary/20">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-300/20 bg-surface/90 shadow-[0_0_30px_rgba(34,211,238,0.14)]">
               <img
                 src="/branding/pulltora_logo.png"
                 alt="Pulltora logo"
@@ -30,7 +30,7 @@ export function MainLayout() {
             <span className="brand-wordmark">Pulltora</span>
           </Link>
 
-          <nav className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
+          <nav className="order-3 flex w-full flex-wrap items-center gap-1.5 text-sm font-medium sm:order-none sm:w-auto">
             {navItems.map((item) => {
               const isActive = pathname === item.to || pathname.startsWith(`${item.to}/`);
 
@@ -51,7 +51,7 @@ export function MainLayout() {
           <div className="flex items-center gap-2">
             {isAuthenticated ? (
               <>
-                <span className="text-xs text-muted-foreground">Hi, {user?.name || 'team'}</span>
+                <span className="hidden text-xs text-muted-foreground sm:inline">Hi, {user?.name || 'team'}</span>
                 <button
                   type="button"
                   className="btn-soft"
