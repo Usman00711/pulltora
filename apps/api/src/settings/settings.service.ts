@@ -10,9 +10,11 @@ export class SettingsService {
     const githubToken = this.configService.get<string>('GITHUB_TOKEN')?.trim();
     const aiEnabled = this.configService.get<string>('AI_ENABLED')?.toLowerCase() === 'true';
     const rawProvider = this.configService.get<string>('AI_PROVIDER')?.toLowerCase();
-    const provider = rawProvider === 'ollama' ? 'ollama' : 'none';
+    const provider =
+      rawProvider === 'ollama' || rawProvider === 'gemini' ? rawProvider : 'none';
     const model = this.configService.get<string>('AI_MODEL')?.trim();
     const aiBaseUrl = this.configService.get<string>('AI_BASE_URL')?.trim();
+    const geminiApiKey = this.configService.get<string>('GEMINI_API_KEY')?.trim();
 
     return {
       github: {
@@ -25,7 +27,8 @@ export class SettingsService {
         enabled: aiEnabled,
         provider: aiEnabled ? provider : 'none',
         model: aiEnabled && model ? model : undefined,
-        baseUrlConfigured: Boolean(aiBaseUrl)
+        baseUrlConfigured: Boolean(aiBaseUrl),
+        apiKeyConfigured: Boolean(geminiApiKey)
       },
       notifications: {
         enabled: false,

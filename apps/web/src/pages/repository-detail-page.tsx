@@ -403,7 +403,11 @@ export default function RepositoryDetailPage() {
                       {insight.category.replace('_', ' ')}
                     </span>
                     <span className="rounded-full border border-border/80 bg-muted/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                      {insight.source === 'LOCAL_AI' ? 'Local AI' : 'Rules'} · {insight.confidence}%
+                      {insight.source === 'GEMINI_AI'
+                        ? 'Gemini AI'
+                        : insight.source === 'LOCAL_AI'
+                          ? 'Local AI'
+                          : 'Rules'} · {insight.confidence}%
                     </span>
                   </div>
                   <h3 className="mt-4 text-base font-semibold">{insight.title}</h3>

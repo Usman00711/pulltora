@@ -297,7 +297,7 @@ export type RepositoryInsightCategory =
 
 export type RepositoryInsightImpact = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
-export type RepositoryInsightSource = 'RULES' | 'LOCAL_AI';
+export type RepositoryInsightSource = 'RULES' | 'LOCAL_AI' | 'GEMINI_AI';
 
 export type RepositoryInsight = {
   id: string;
@@ -324,9 +324,10 @@ export type IntegrationSettingsStatus = {
   };
   ai: {
     enabled: boolean;
-    provider: 'none' | 'ollama';
+    provider: 'none' | 'ollama' | 'gemini';
     model?: string;
     baseUrlConfigured: boolean;
+    apiKeyConfigured: boolean;
   };
   notifications: {
     enabled: false;

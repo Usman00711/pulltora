@@ -12,14 +12,17 @@ export class AiIntegrationStatusDto {
   @ApiProperty()
   enabled!: boolean;
 
-  @ApiProperty({ enum: ['none', 'ollama'] })
-  provider!: 'none' | 'ollama';
+  @ApiProperty({ enum: ['none', 'ollama', 'gemini'] })
+  provider!: 'none' | 'ollama' | 'gemini';
 
   @ApiPropertyOptional()
   model?: string;
 
   @ApiProperty()
   baseUrlConfigured!: boolean;
+
+  @ApiProperty()
+  apiKeyConfigured!: boolean;
 }
 
 export class NotificationIntegrationStatusDto {
